@@ -13,3 +13,4 @@ requires imageMagick - run.sh prompts to install it
 chmod +x run.sh
 ./run.sh yourimage.png # (any file format accepted by imageMagick)
 ```
+don't run main directly
