@@ -7,7 +7,6 @@ typedef struct {
   int width;
   int height;
   int maxval;
-  int channel_size;
 } PPMHEADER;
 
 int validate_header(PPMHEADER *header) {
@@ -58,11 +57,11 @@ int read_pixel(FILE *f, PPMHEADER *header, int *brightness) {
 
 int read_ppm_header(FILE *f, PPMHEADER *header) {
 
-  *header = (PPMHEADER){.width = -1,
-                        .height = -1,
-                        .maxval = -1,
-                        .channel_size =
-                            -1}; // -1 so unset values fail validate_header
+  *header = (PPMHEADER){
+      .width = -1,
+      .height = -1,
+      .maxval = -1,
+  }; // -1 so unset values fail validate_header
 
   char magic[3];
   if (fscanf(f, "%2s", magic) != 1) {
@@ -80,12 +79,6 @@ int read_ppm_header(FILE *f, PPMHEADER *header) {
       3) {
     fprintf(stderr, "failed to retrieve header\n");
     return 1;
-  }
-
-  if (header->maxval <= 255) { // ppm files can be 8b or 16b per channel
-    header->channel_size = 1;
-  } else {
-    header->channel_size = 2;
   }
 
   if (validate_header(header)) { // 0 good 1 bad
