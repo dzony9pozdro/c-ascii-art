@@ -124,7 +124,10 @@ int build_row(FILE *f, PPMHEADER *header) {
   for (int j = 0; j < 20; j++) { // one ascii char per 10x20 pixel block
     for (int i = 0; i < header->width; i++) {
       int b;
-      read_pixel(f, header, &b);
+      if (0 != read_pixel(f, header, &b)) {
+        fprintf(stderr, "failed to read pixel in build_row");
+        return 1;
+      }
       acc[i / 10] += b;
     }
   }
