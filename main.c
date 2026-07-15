@@ -82,6 +82,8 @@ int read_ppm_header(FILE *f, PPMHEADER *header) {
   }
 
   if (validate_header(header)) { // 0 good 1 bad
+    fprintf(stderr, "header failed validation");
+    fclose(f);
     return 1;
   }
 
@@ -120,6 +122,7 @@ int build_row(FILE *f, PPMHEADER *header) {
       if (0 != read_pixel(f, header, &b)) {
         fprintf(stderr, "failed to read pixel in build_row");
         return 1;
+        fclose(f);
       }
       acc[i / 10] += b;
     }
@@ -140,7 +143,6 @@ int build_row(FILE *f, PPMHEADER *header) {
 }
 
 int read_ppm(const char *filename) {
-  int status = 0;
   PPMHEADER header;
 
   FILE *f = fopen(filename, "rb");
@@ -150,7 +152,11 @@ int read_ppm(const char *filename) {
     return 1;
   }
 
-  read_ppm_header(f, &header);
+  if (0 != read_ppm_header(f, &header)) {
+    fclose(f);
+    return 1;
+  };
+
   fgetc(f); // get rid of 1 whitespace after maxval
   for (int i = 0; i < header.height / 20; i++) {
     build_row(f, &header);
