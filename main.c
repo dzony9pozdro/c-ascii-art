@@ -27,28 +27,32 @@ int validate_header(PPMHEADER *header) {
   }
   return 0;
 }
-int read_pixel(FILE *f, PPMHEADER *header) {
+int read_pixel(FILE *f, PPMHEADER *header, int *brightness) {
 
   int rgb[3];
-  int brightness;
   uint8_t buf[2]; // P6 .ppm 16 bit channel files are big endian, x86 is little
                   // endian, so we manually assemble the value, high bit first
 
   for (int i = 0; i < 3; i++) { // 0 - red, 1 - green, 2 - blue
-    fread(buf, 1, 2, f);
+
+    if (2 != fread(buf, 1, 2, f)) {
+      fprintf(stderr, "fread failed\n");
+      return 1;
+    };
+
     rgb[i] = (buf[0] << 8) | buf[1];
 
     if (rgb[i] > header->maxval) {
-      fprintf(
-          stderr,
-          "channel value incompatible with maxval provided in header: %d > %d",
-          rgb[i], header->maxval);
+      fprintf(stderr,
+              "channel value incompatible with maxval provided in header: %d > "
+              "%d\n",
+              rgb[i], header->maxval);
       return 1;
     }
   }
 
-  brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]);
-
+  *brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]);
+  // printf("brightness inside read_pixel: %d\n", *brightness);
   return 0;
 }
 
@@ -91,6 +95,54 @@ int read_ppm_header(FILE *f, PPMHEADER *header) {
   return 0;
 }
 
+int map_to_palette(int chunk_brightness, char *character, PPMHEADER *header) {
+
+  if (chunk_brightness > header->maxval) {
+    fprintf(stderr, "invalid chunk brightness in map_to_palette");
+    return 1;
+  }
+
+  char *palette = " .:-=+*#%@";
+  int palette_length = strlen(palette);
+
+  int idx = chunk_brightness / (header->maxval / 10) - 1;
+  if (idx > palette_length - 1) {
+    idx = palette_length - 1;
+  };
+  if (idx < 0) {
+    idx = 0;
+  }
+
+  *character = palette[idx];
+  return 0;
+}
+
+int build_row(FILE *f, PPMHEADER *header) {
+
+  uint32_t *acc = calloc(header->width / 10, sizeof(*acc));
+
+  for (int j = 0; j < 20; j++) { // one ascii char per 10x20 pixel block
+    for (int i = 0; i < header->width; i++) {
+      int b;
+      read_pixel(f, header, &b);
+      acc[i / 10] += b;
+    }
+  }
+  int avg;
+  char *row = calloc(header->width / 10 + 1, sizeof(*row)); // +1 for \0
+  char character;
+  for (int i = 0; i < header->width / 10; i++) {
+    avg = acc[i] / 200;
+    map_to_palette(avg, &character, header);
+    row[i] = character;
+  }
+
+  printf("%s\n", row);
+  free(row);
+  free(acc);
+  return 0;
+}
+
 int read_ppm(const char *filename) {
   int status = 0;
   PPMHEADER header;
@@ -104,7 +156,9 @@ int read_ppm(const char *filename) {
 
   read_ppm_header(f, &header);
   fgetc(f); // get rid of 1 whitespace after maxval
-  read_pixel(f, &header);
+  for (int i = 0; i < header.height / 20; i++) {
+    build_row(f, &header);
+  }
   return 0;
 }
 

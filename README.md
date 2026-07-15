@@ -1,3 +1,15 @@
-# c-ascii-art (wip)
-a C rewrite of my ascii art generator written in ruby because it was slow 
 
+
+## build
+```bash
+make            # compiles main.c -> main
+make clean      # removes the binary
+```
+
+## run
+requires imageMagick - run.sh prompts to install it
+
+```bash
+chmod +x run.sh
+./run.sh yourimage.png # (any file format accepted by imageMagick)
+```
