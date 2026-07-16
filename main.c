@@ -121,8 +121,9 @@ int build_row(FILE *f, PPMHEADER *header) {
       int b;
       if (0 != read_pixel(f, header, &b)) {
         fprintf(stderr, "failed to read pixel in build_row");
-        return 1;
+        free(acc);
         fclose(f);
+        return 1;
       }
       acc[i / 10] += b;
     }
