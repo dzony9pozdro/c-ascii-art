@@ -83,19 +83,13 @@ int read_ppm_header(FILE *f, PPMHEADER *header) {
 
   if (validate_header(header)) { // 0 good 1 bad
     fprintf(stderr, "header failed validation");
-    fclose(f);
     return 1;
   }
 
   return 0;
 }
 
-int map_to_palette(int chunk_brightness, char *character, PPMHEADER *header) {
-
-  if (chunk_brightness > header->maxval) {
-    fprintf(stderr, "invalid chunk brightness in map_to_palette");
-    return 1;
-  }
+void map_to_palette(int chunk_brightness, char *character, PPMHEADER *header) {
 
   char *palette = " .:-=+*#%@";
   int palette_length = strlen(palette);
@@ -109,12 +103,16 @@ int map_to_palette(int chunk_brightness, char *character, PPMHEADER *header) {
   }
 
   *character = palette[idx];
-  return 0;
 }
 
 int build_row(FILE *f, PPMHEADER *header) {
 
   uint32_t *acc = calloc(header->width / 10, sizeof(*acc));
+
+  if (acc == NULL) {
+    fprintf(stderr, "calloc failed for acc in build_row");
+    return 1;
+  }
 
   for (int j = 0; j < 20; j++) { // one ascii char per 10x20 pixel block
     for (int i = 0; i < header->width; i++) {
@@ -122,7 +120,6 @@ int build_row(FILE *f, PPMHEADER *header) {
       if (0 != read_pixel(f, header, &b)) {
         fprintf(stderr, "failed to read pixel in build_row");
         free(acc);
-        fclose(f);
         return 1;
       }
       acc[i / 10] += b;
@@ -130,6 +127,11 @@ int build_row(FILE *f, PPMHEADER *header) {
   }
   int avg;
   char *row = calloc(header->width / 10 + 1, sizeof(*row)); // +1 for \0
+  if (row == NULL) {
+    fprintf(stderr, "calloc failed for row in build_row");
+    free(acc);
+    return 1;
+  }
   char character;
   for (int i = 0; i < header->width / 10; i++) {
     avg = acc[i] / 200;
@@ -159,9 +161,14 @@ int read_ppm(const char *filename) {
   };
 
   fgetc(f); // get rid of 1 whitespace after maxval
+
   for (int i = 0; i < header.height / 20; i++) {
-    build_row(f, &header);
+    if (0 != build_row(f, &header)) {
+      fclose(f);
+      return 1;
+    };
   }
+  fclose(f);
   return 0;
 }
 
